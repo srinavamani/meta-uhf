@@ -1,0 +1,15 @@
+#! /bin/sh
+set -e
+
+case "$1" in
+  start)
+	echo -n "Starting ptest runner test"
+	sh /etc/ptest_automatic_runner_script.sh &
+	;;
+  *)
+	echo "Usage: ptest_runner_test { start}" >&2
+	exit 1
+	;;
+esac
+
+exit 0
