@@ -1,0 +1,15 @@
+#! /bin/sh
+set -e
+
+case "$1" in
+  start)
+	echo -n "Starting uhf-init-process"
+	sh /etc/uhf-init-process.sh &
+	;;
+  *)
+	echo "Usage: uhf-init-process { start}" >&2
+	exit 1
+	;;
+esac
+
+exit 0
