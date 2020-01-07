@@ -1,0 +1,22 @@
+ctrl_interface=/var/run/wpa_supplicant
+ctrl_interface_group=0
+update_config=1
+
+network={
+        ssid="Admin123"
+        #psk="Admin123"
+        psk=6497313bde6856abcee0970e25f11d2ac9c1ec5dd8b093ad36b20fda520ef4f4
+}
+ 
+network={
+        ssid="PEEPAL"
+        #psk="firefox456"
+        psk=01d6fe776b5446f9f36c300c63c318d3fdaf896a2a2ea8a2aaf990940aff9f4b
+}
+
+network={
+        ssid="Embedded_World"
+        #psk="giveme500rupees"
+        psk=8921d351c3c3c6ca454daa190319cba3f55d4198b97ed13509618cc384402a07
+}
+ 

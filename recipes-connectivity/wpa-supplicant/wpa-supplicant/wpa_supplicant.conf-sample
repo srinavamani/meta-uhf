@@ -1,0 +1,10 @@
+ctrl_interface=/var/run/wpa_supplicant
+ctrl_interface_group=0
+update_config=1
+
+network={
+	ssid="Admin123"
+	#psk="Admin123"
+	psk=6497313bde6856abcee0970e25f11d2ac9c1ec5dd8b093ad36b20fda520ef4f4
+}
+ 

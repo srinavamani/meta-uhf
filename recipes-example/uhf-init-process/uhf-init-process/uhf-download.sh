@@ -40,7 +40,16 @@ fi
 val1=`cat "$Config_file_path/$main_conf_file_name" | grep "wifi_ssid"` && val2=${val1#*>} && wifi_ssid=${val2%<*}
 val1=`cat "$Config_file_path/$main_conf_file_name" | grep "wifi_password"` && val2=${val1#*>} && wifi_password=${val2%<*}
 
-cp /etc/wpa_supplicant.conf-sample /etc/wpa_supplicant.conf
+val1=`cat "$Config_file_path/$main_conf_file_name" | grep "IN"` && number_of_channels=${val1#*>} && number_of_channels=${val2%<*}
+
+val1=`cat "$Config_file_path/$main_conf_file_name" | grep "IN"` && val2=${val1#*>} && IN=${val2%<*}
+val1=`cat "$Config_file_path/$main_conf_file_name" | grep "OUT"` && val2=${val1#*>} && OUT=${val2%<*}
+
+echo "Number of channels - $number_of_channels"
+echo "IN - $IN"
+echo "OUT - $OUT"
+
+cp /etc/wpa_supplicant.conf-uhf /etc/wpa_supplicant.conf
 
 wpa_passphrase $wifi_ssid $wifi_password >> /etc/wpa_supplicant.conf
 
@@ -63,14 +72,17 @@ esac
 
 upload()
 {
+
+Upload "$1" "$number_of_channels" "$IN" "$OUT"
+
 echo "uploading - $1 Report"
-upload_date=`date +%Y-%M-%D`
-file_name="$upload_date_$1.csv"
-echo "file_name"
+upload_date=`date +%Y-%m-%d`
+file_name=`echo "$upload_date"_"$1".csv`
+echo "$file_name"
 
-sqlite3 -header -csv "/home/root/ID.db" "select * from Student_Details;" > "$file"
+sqlite3 -header -csv "/home/root/ID.db" "select * from Student_Details;" > "/home/root/$file_name"
 
-aws s3 cp "$file_name" "s3://peepal000primary000school/Reports/Campus/"
+aws s3 cp "/home/root/$file_name" "s3://peepal000primary000school/Reports/Campus/"
 
 }
 
@@ -81,14 +93,21 @@ aws s3 cp "$file_name" "s3://peepal000primary000school/Reports/Campus/"
 
 Config_file_path="/home/root/RPI_CONFIGS"
 auto_download_check=`date +%H`
+hour=`date +%H`
 
 if [ ! -d $Config_file_path ]
 then
-	echo "RPI_CONFI Not found"
+	echo "RPI_CONFIGS Not found"
 	mkdir -p "$Config_file_path/upload"
+	chmod 777 "$Config_file_path"
 fi
 
-mac=`cat /sys/class/net/eth0/address`
+if [ ! -f "/home/root/upload_state" ]
+then
+touch /home/root/upload_state
+fi
+
+#mac=`cat /sys/class/net/eth0/address`
 mac="58:8a:5a:39:38:03"
 
 # AWS encryotion and decryption pending
@@ -96,6 +115,8 @@ mac="58:8a:5a:39:38:03"
 aws s3 ls s3://board-mapping-details/ | awk '{print $4}' > /tmp/list.txt
 
 default_conf_file=`cat "/tmp/list.txt" | grep $mac`
+
+echo "$default_conf_file"
 
 if [ $default_conf_file ]
 then
@@ -108,7 +129,7 @@ else
 fi
 
 #Last Updation Timestamp in config file
-val1=`cat "$Config_file_path/$default_conf_file" | grep "config_updated_timestamp"` && val2=${val1#*>} && config_updated_timestamp=${val2%<*}
+val1=`cat $Config_file_path/$default_conf_file | grep "config_updated_timestamp"` && val2=${val1#*>} && config_updated_timestamp=${val2%<*}
 echo $config_updated_timestamp
 
 if [ -f $Config_file_path/config_timestamp ]
@@ -131,12 +152,14 @@ then
 
 	fi
 else
-	echo "File not exist"
+	echo "Confing file not found"
 	download_config
 	echo "$config_updated_timestamp" > $Config_file_path/config_timestamp
 fi
 
+# Remove the ID.db based on backup concept
 rm -rf /home/root/ID.db
+
 #BLE_Student_ID_Scanner &
 
 val1=`cat "$Config_file_path/$main_conf_file_name" | grep "morning_section_start"` && val2=${val1#*>} && morning_start=${val2%<*}
@@ -151,8 +174,14 @@ morning_section_end=`echo ${morning_end//:}`
 afternoon_section_start=`echo ${afternoon_start//:}`
 afternoon_section_end=`echo ${afternoon_end//:}`
 
+echo "$morning_section_start - $morning_section_end"
+echo "$afternoon_section_start - $afternoon_section_end"
+
 morning_section_started="no"
 afternoon_section_started="no"
+
+morning_section="not_started"
+afternoon_section="not_started"
 
 date=`date +%d%m%Y`
 
@@ -174,53 +203,83 @@ while [ 1 ]
 do
 
 current_time=`date +%H%M%S`
-echo "$current_time"
+#echo "current_time - $current_time"
 current_date=`date +%d%m%Y`
-echo "$current_date"
+#echo "$current_date"
 
-hour=`date +%H`
+quick_upload=`cat /home/root/upload_state`
 
-if [ $hour -eq $auto_download_check ]
+# Quick upload - Morning report
+if [ "$quick_upload" == "morning" ]
 then
-echo "Auto_Download_Check"
-auto_download_check_function
-auto_download_check=$((auto_download_check+1))
+upload morning
+morning_upload_state="yes"
+echo "none" > /home/root/upload_state
+# Quick upload - Afternoon report
+elif [ "$quick_upload" == "afternoon" ]
+then
+upload afternoon
+afternoon_upload_state="yes"
+echo "none" > /home/root/upload_state
 fi
 
-if [ $current_time -gt $morning_section_start -a $current_time -lt $morning_section_end ]
+###### Masked due to some error in increment
+#if [ $hour -eq $auto_download_check ]
+#then
+#echo "Auto_Download_Check"
+#auto_download_check_function
+#auto_download_check=$((auto_download_check+1))
+#fi
+
+if [ "$current_time" -gt "$morning_section_start" -a "$current_time" -lt "$morning_section_end" ]
+then
+if [ "$morning_section" == "not_started" ]
 then
 echo "morning section in process"
 #
 # Call the binary with argument for morning or afternoon section
 #
+BLE_Student_ID_Scanner &
+########
+morning_section="started"
 morning_section_started="yes"
-
+fi
 elif [ "$morning_upload_state" == "no" -a "$morning_section_started" == "yes" ]
 then
+echo "upload - morning"
 #
 # Kill the binary
 #
-upload morning
+killall BLE_Student_ID_Scanner
+########
+#upload morning
 morning_upload_state="yes"
 fi
 
-if [ $current_time -gt $afternoon_section_start -a $current_time -lt $afternoon_section_end ]
+if [ "$current_time" -gt "$afternoon_section_start" -a "$current_time" -lt "$afternoon_section_end" ]
+then
+if [ "$afternoon_section" == "not_started" ]
 then
 echo "afternoon section in process"
 #
 # Call the binary with argument for morning or afternoon section
 #
+BLE_Student_ID_Scanner &
+########
+afternoon_section="started"
 afternoon_section_started="yes"
+fi
 elif [ "$afternoon_upload_state" == "no" -a "$afternoon_section_started" == "yes" ]
 then
 #
 # Kill the binary
 #
-upload afternoon
+killall BLE_Student_ID_Scanner
+########
+#upload afternoon
 afternoon_upload_state="yes"
 fi
 
 sleep 1
 
 done
-

@@ -11,7 +11,7 @@ SRC_URI = "file://${THISDIR}/uhf-init-process;protocol=file \
 	   file://.aws \
 	   file://uhf-download.sh \
 	   file://BLE_Student_ID_Scanner \
-	   file://timer \
+	   file://Upload \
 	   "
 
 do_install() {
@@ -27,6 +27,6 @@ do_install() {
 	 chmod 777 ${D}/${sysconfdir}/init.d/uhf-init-process
 	 ln -s ${sysconfdir}/init.d/uhf-init-process ${D}/${sysconfdir}/rc5.d/S20uhf-init-process
 	 cp -rf ${WORKDIR}/BLE_Student_ID_Scanner ${D}/${bindir}/
-	 cp -rf ${WORKDIR}/timer ${D}/${bindir}/
+	 cp -rf ${WORKDIR}/Upload ${D}/${bindir}/
 }
 
